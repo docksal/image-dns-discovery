@@ -2,8 +2,13 @@
 DOCKER ?= docker
 
 SHELL = /bin/bash
-VERSION ?= dev
 
+ifeq ($(VERSION),)
+    VERSION = dev
+    LATEST_VERSION = $(VERSION)
+endif
+
+BUILD_TAG ?= $(VERSION)
 REPO = docksal/dns
 NAME = docksal-dns
 DOCKSAL_IP=192.168.64.100
@@ -13,13 +18,13 @@ DOCKSAL_IP=192.168.64.100
 .PHONY: build exec test push shell run start stop logs debug clean release
 
 build:
-	${DOCKER} build -t ${REPO}:${VERSION} .
+	${DOCKER} build -t ${REPO}:${BUILD_TAG} .
 
 test:
-	IMAGE=${REPO}:${VERSION} bats tests/test.bats
+	IMAGE=${REPO}:${BUILD_TAG} bats tests/test.bats
 
 push:
-	${DOCKER} push ${REPO}:${VERSION}
+	${DOCKER} push ${REPO}:${BUILD_TAG}
 
 exec:
 	@${DOCKER} exec ${NAME} ${CMD}
@@ -31,11 +36,11 @@ shell:
 	@make exec-it -e CMD=sh
 
 run: clean
-	${DOCKER} run --rm -it -e DNS_DOMAIN=docksal -e DNS_IP=${DOCKSAL_IP} ${REPO}:${VERSION} sh
+	${DOCKER} run --rm -it -e DNS_DOMAIN=docksal -e DNS_IP=${DOCKSAL_IP} ${REPO}:${BUILD_TAG} sh
 
 # This is the only place where fin is used/necessary
 start:
-	IMAGE_DNS=${REPO}:${VERSION} fin system reset dns
+	IMAGE_DNS=${REPO}:${BUILD_TAG} fin system reset dns
 
 stop:
 	${DOCKER} stop ${NAME}
@@ -52,7 +57,7 @@ show-config:
 debug: build start logs-follow
 
 release:
-	@scripts/release.sh
+	@scripts/docker-push.sh
 
 clean:
 	${DOCKER} rm -vf ${NAME} || true
